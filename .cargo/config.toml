@@ -1,0 +1,6 @@
+[target.x86_64-pc-windows-gnullvm]
+linker = ".tools/llvm-mingw-20261104-ucrt-x86_64/bin/x86_64-w64-mingw32-clang.exe"
+rustflags = ["-C", "link-self-contained=no", "-C", "target-feature=+crt-static"]
+
+[build]
+jobs = 4

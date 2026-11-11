@@ -1,0 +1,7 @@
+/.tools/
+/target/
+/artifacts/
+/dist/
+**/settings.ini
+**/settings.ini.tmp
+/.tools-cache/

@@ -7,6 +7,7 @@ mod model;
 mod player;
 mod preferences;
 mod ui;
+mod volume;
 mod window;
 
 fn main() {
@@ -29,6 +30,8 @@ fn main() {
             .with_min_inner_size([preferences::MIN_WIDTH, preferences::MIN_HEIGHT])
             .with_max_inner_size([1400.0, 900.0])
             .with_resizable(true)
+            .with_taskbar(false)
+            .with_active(false)
             .with_decorations(false)
             .with_transparent(true)
             .with_icon(ui::app_icon()),

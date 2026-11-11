@@ -55,6 +55,9 @@ pub enum Hit {
 
 pub fn hit_test(x: f32, y: f32, width: f32, height: f32, dropdown: bool) -> Hit {
     if dropdown {
+        if x < 14.0 && y >= height - 14.0 {
+            return Hit::BottomLeft;
+        }
         if x >= width - 14.0 && y >= height - 14.0 {
             return Hit::BottomRight;
         }
@@ -71,7 +74,7 @@ pub fn hit_test(x: f32, y: f32, width: f32, height: f32, dropdown: bool) -> Hit 
             _ => {}
         }
     }
-    if (8.0..54.0).contains(&y) && x < width - 123.0 {
+    if (8.0..54.0).contains(&y) && x < width - 60.0 {
         Hit::Caption
     } else {
         Hit::Client
@@ -83,13 +86,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dropdown_only_resizes_from_bottom_right() {
+    fn dropdown_only_resizes_from_bottom_corners() {
         for x in [0.0, 100.0, 379.0, 759.0] {
             assert_eq!(hit_test(x, 0.0, 760.0, 340.0, true), Hit::Client);
         }
         assert_eq!(hit_test(0.0, 160.0, 760.0, 340.0, true), Hit::Client);
         assert_eq!(hit_test(759.0, 160.0, 760.0, 340.0, true), Hit::Client);
         assert_eq!(hit_test(200.0, 339.0, 760.0, 340.0, true), Hit::Client);
+        assert_eq!(hit_test(0.0, 339.0, 760.0, 340.0, true), Hit::BottomLeft);
         assert_eq!(hit_test(759.0, 339.0, 760.0, 340.0, true), Hit::BottomRight);
         assert_eq!(hit_test(80.0, 26.0, 760.0, 340.0, true), Hit::Caption);
     }

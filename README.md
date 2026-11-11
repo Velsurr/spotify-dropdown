@@ -1,34 +1,38 @@
-# Spotify Dropdown — 0.2.1
+# Spotify Dropdown — v0.2.2 Alpha
 
-Controlador local do Spotify Desktop para Windows 11, feito em Rust/egui, sem OAuth.
+Controlador local do Spotify Desktop para Windows 11 x64, feito em Rust/egui, sem OAuth. Esta Alpha está **pendente de validação funcional e visual pelo usuário**.
 
-## Abrir e testar
+## Abrir e usar
 
-- **Portátil:** abra `dist\v0.2.1\Spotify Dropdown.exe`.
-- **Instalador:** abra `dist\v0.2.1\SpotifyDropdown-Setup-0.2.1.exe`. Instala para o usuário atual, sem administrador, e cria um atalho no menu Iniciar. A pasta padrão é `%LOCALAPPDATA%\Programs\SpotifyDropdown`.
-- No Spotify Desktop, reproduza uma música neste computador e mantenha ativado **Configurações → Exibição → Mostrar o Desktop Overlay quando os controles de reprodução estiverem sendo usados**.
-- Abra **••• → Ajustes**, ou clique com o botão direito na janela. Marque **Ativar modo dropdown**, escolha monitor e alinhamento. O painel fica totalmente invisível ao recolher. Encoste o cursor no topo, na região correspondente à largura/alinhamento escolhidos, para abri-lo.
-- O atraso de recolhimento é ajustável no slider, com padrão de **0,8 s**. Menus abertos e arrastes mantêm a janela visível. Não há atalhos específicos do aplicativo nesta versão.
-- Arraste o cabeçalho para mover a janela; isso retira o painel do modo dropdown. No dropdown, redimensione apenas pelo **canto inferior direito**. No modo livre, use qualquer borda ou canto. Tamanhos também podem ser ajustados no menu. A aba **Sobre** mostra a versão.
+1. Extraia o ZIP `SpotifyDropdown-v0.2.2-alpha-windows-x64.zip` em uma pasta gravável e abra **`Spotify Dropdown.exe`**. No projeto, ele fica em `dist\v0.2.2-alpha\Spotify Dropdown.exe`. Não há instalador nesta atualização.
+2. Abra o Spotify Desktop e reproduza uma música neste computador. Mantenha ativado **Configurações → Exibição → Mostrar o Desktop Overlay quando os controles de reprodução estiverem sendo usados**.
+3. Use **•••** para abrir os ajustes na própria janela; **X** retorna ao controlador. O botão direito não abre mais o menu. A aba **Sobre** informa a versão.
+4. Ative o **modo dropdown**, escolha monitor e alinhamento. Ao recolher, o painel fica invisível; encoste o cursor no topo, na região correspondente ao painel, para abri-lo. O slider define o atraso de recolhimento, com padrão de **0,8 s**.
+5. Redimensione pelos cantos. No dropdown, use os **cantos inferiores**: a borda superior permanece fixa; no alinhamento central, a largura varia para os dois lados. Ao reduzir a altura, o modo compacto oculta a capa automaticamente. Arrastar o cabeçalho transforma o painel em janela livre.
+6. **Esconder**, no menu, mantém o programa em execução na bandeja e desativa a abertura pelo topo. **Dois cliques no ícone da bandeja** reabrem a janela. **Fechar** encerra o aplicativo. O ícone pode estar entre os ícones ocultos da bandeja.
 
-**Funcionam:** capa, faixa, artista, álbum, anterior, reproduzir/pausar e próxima, pela sessão de mídia do Windows. O progresso é somente leitura e depende dos tempos fornecidos pelo Spotify. Favorito, volume e playlists permanecem indisponíveis e identificados como tal.
+Metadados e anterior/reproduzir-pausar/próxima usam a sessão de mídia do Windows. O progresso é somente leitura. O botão de volume abre um painel vertical para ajustar **as sessões de áudio do Spotify**, sem alterar o volume global do Windows. Ele fica indisponível quando não há sessão Spotify controlável. Adicionar à biblioteca e playlists continuam desabilitados.
 
-As preferências ficam em `settings.ini`, ao lado do executável. O instalador preserva esse arquivo nas atualizações e na desinstalação. As versões anteriores na pasta do projeto continuam disponíveis.
+As preferências ficam em `settings.ini`, ao lado do executável. Os arquivos das versões anteriores foram preservados. Para reutilizar seus ajustes na pasta nova, copie o `settings.ini` anterior antes de abrir a nova versão; tamanhos compatíveis são mantidos e valores antigos fora dos limites são ajustados.
 
-O observador do cursor funciona sem a janela estar em foco ou visível, e o dropdown reaparece como janela no topo, sem tomar o foco do outro aplicativo. **Tela cheia exclusiva, jogos que prendem o cursor e outras janelas que disputam a prioridade não permitem garantia universal.** Prefira tela cheia sem bordas para usar com jogos. Não há injeção em jogos ou ganchos de teclado.
+## Validação e limites
 
-## Compilar
+Consulte [MANUAL-TESTS.md](MANUAL-TESTS.md) para verificar janela, bandeja, redimensionamento, menu, textos, mídia e volume. **Compilar com sucesso não aprova esses comportamentos.** Nesta versão não se abre o aplicativo nem se automatiza a área de trabalho durante o desenvolvimento.
 
-Rust estável, Cargo, LLVM-MinGW e NSIS portátil ficam em `.tools` neste ambiente. Os scripts não alteram o PATH permanentemente. Para preparar outra máquina, revise e autorize os downloads dos scripts de preparação antes de executá-los. O script `setup-rust.ps1` pressupõe o instalador oficial rustup-init.exe e o LLVM-MinGW já disponíveis em `.tools`; ele não é um instalador completo de todas as ferramentas. Após preparar as ferramentas e buscar as dependências com `scripts\dev.ps1 fetch`:
+Tela cheia exclusiva, jogos que prendem o cursor e outras janelas que disputam prioridade impedem garantia universal de sobreposição. DPI/múltiplos monitores, roteamento de áudio e textos longos também precisam de conferência manual.
+
+## Compilar novamente
+
+As ferramentas deste ambiente ficam em `.tools`, sem alteração permanente do PATH. Os scripts de preparação dependem de downloads previamente autorizados; `setup-rust.ps1` pressupõe o instalador oficial e o LLVM-MinGW já disponíveis. Depois de preparar as ferramentas e obter as dependências com `scripts\dev.ps1 fetch`:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\dev.ps1 test
-pwsh -NoProfile -File .\scripts\dev.ps1 clippy
+pwsh -NoProfile -File .\scripts\dev.ps1 check
 pwsh -NoProfile -File .\scripts\dev.ps1 release
 pwsh -NoProfile -File .\scripts\package.ps1
-pwsh -NoProfile -File .\scripts\build-installer.ps1
 ```
 
-Código: `player.rs` e `layout.rs` organizam a interface; `window.rs`, `dropdown.rs` e `preferences.rs` cuidam da janela; `media.rs` e `model.rs` integram o Spotify. `fullscreen-fixture` é uma janela de teste local, excluída da distribuição.
+O pacote contém apenas executável e documentação. `SHA256SUMS.txt`, ao lado dele, identifica o executável e o ZIP. Não execute `build-installer.ps1` nesta atualização menor. Os scripts históricos de teste/instalador foram preservados, mas não integram a validação da v0.2.2.
 
-Versões usam `MAJOR.MINOR.PATCH`; consulte [CHANGELOG.md](CHANGELOG.md). Ferramentas, executáveis gerados, preferências e diagnósticos locais são ignorados pelo Git. Não afiliado ao Spotify.
+Código: `player.rs`, `layout.rs` e `ui.rs` cuidam da interface; `window.rs`, `dropdown.rs` e `preferences.rs` cuidam da janela; `media.rs`, `model.rs` e `volume.rs` integram o Windows. O ponto de recuperação anterior está na tag local `snapshot-v0.2.1`.
+
+Repositório oficial: [Velsurr/spotify-dropdown](https://github.com/Velsurr/spotify-dropdown). Versões usam SemVer, incluindo o sufixo `-alpha`; consulte [CHANGELOG.md](CHANGELOG.md) e [RELEASE-NOTES.md](RELEASE-NOTES.md). Ferramentas, executáveis, preferências e diagnósticos locais ficam fora do Git. Não afiliado ao Spotify.

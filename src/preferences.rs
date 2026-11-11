@@ -6,7 +6,7 @@ use std::{
 };
 
 pub const MIN_WIDTH: f32 = 360.0;
-pub const MIN_HEIGHT: f32 = 340.0;
+pub const MIN_HEIGHT: f32 = 240.0;
 pub const TRIGGER_HEIGHT: i32 = 2;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

@@ -1,5 +1,20 @@
 # Histórico de versões
 
+## 0.2.2-alpha
+
+Implementação e compilação; validação funcional e visual manual pendente.
+
+- Redimensionamento ancorado ao topo durante o arraste, com largura simétrica no alinhamento central e limites do monitor.
+- Bandeja persistente; janela fora da barra de tarefas/Alt+Tab; Esconder e Fechar no menu; retorno por duplo clique na bandeja.
+- Menu ocupa a própria janela, sem acesso pelo botão direito, e fecha ao clicar fora.
+- Controles de reprodução dentro do cartão de progresso, adicionar desabilitado em espaço separado e estado real no cabeçalho.
+- Removidos botões tradicionais de minimizar/fechar e sliders de dimensões.
+- Modo compacto automático sem capa, com transição estável perto do limite de altura.
+- Textos em uma linha, com rolagem horizontal somente quando excedem a área disponível.
+- Controle de volume por sessão de áudio do Spotify, sem controle do volume global.
+- Fundo mais preto e capa menor com arredondamento discreto.
+- Executável portátil e ZIP; nenhum instalador novo. Checklist manual incluído.
+
 ## 0.2.1
 
 - Dropdown completamente oculto, com animação de abertura e recolhimento.

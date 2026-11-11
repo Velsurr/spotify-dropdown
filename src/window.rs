@@ -1,6 +1,8 @@
 //! Native placement and a cursor observer that also wakes a completely hidden window.
 use crate::dropdown::{Hit, Slide, hit_test};
-use crate::preferences::{Bounds, EdgeAction, EdgeWatcher, Mode, Preferences};
+use crate::preferences::{
+    Alignment, Bounds, EdgeAction, EdgeWatcher, MIN_HEIGHT, MIN_WIDTH, Mode, Preferences,
+};
 use eframe::egui;
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use std::{
@@ -23,16 +25,74 @@ use windows::{
         },
         UI::{
             HiDpi::{GetDpiForMonitor, GetDpiForWindow, MDT_EFFECTIVE_DPI},
-            Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON},
-            Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
+            Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON, VK_RBUTTON},
+            Shell::{
+                DefSubclassProc, NIF_ICON, NIF_MESSAGE, NIF_SHOWTIP, NIF_TIP, NIM_ADD, NIM_DELETE,
+                NIM_SETVERSION, NOTIFYICON_VERSION_4, NOTIFYICONDATAW, RemoveWindowSubclass,
+                SetWindowSubclass, Shell_NotifyIconW,
+            },
             WindowsAndMessaging::*,
         },
     },
-    core::{BOOL, Error, Result},
+    core::{BOOL, Error, Result, w},
 };
 
 const SUBCLASS_ID: usize = 0x53504432;
 const WM_EDGE_ACTION: u32 = WM_APP + 0x321;
+const WM_TRAY_ACTION: u32 = WM_APP + 0x322;
+const TRAY_ID: u32 = 1;
+
+#[derive(Clone, Copy)]
+struct ResizeAnchor {
+    screen: Bounds,
+    alignment: Alignment,
+    scale: f32,
+    start: Bounds,
+}
+
+impl Default for ResizeAnchor {
+    fn default() -> Self {
+        Self {
+            screen: Bounds {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            alignment: Alignment::Center,
+            scale: 1.0,
+            start: Bounds::default(),
+        }
+    }
+}
+
+fn tray_data(hwnd: HWND, icon: usize) -> NOTIFYICONDATAW {
+    let mut data = NOTIFYICONDATAW {
+        cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
+        hWnd: hwnd,
+        uID: TRAY_ID,
+        uFlags: NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP,
+        uCallbackMessage: WM_TRAY_ACTION,
+        hIcon: HICON(icon as *mut std::ffi::c_void),
+        ..Default::default()
+    };
+    let tip: Vec<u16> = "Spotify Dropdown · dois cliques para abrir"
+        .encode_utf16()
+        .collect();
+    data.szTip[..tip.len()].copy_from_slice(&tip);
+    data
+}
+
+fn add_tray(hwnd: HWND, icon: usize) -> bool {
+    let mut data = tray_data(hwnd, icon);
+    // SAFETY: the icon is owned by NativeWindow and retained until the icon is removed.
+    if !unsafe { Shell_NotifyIconW(NIM_ADD, &data) }.as_bool() {
+        return false;
+    }
+    data.Anonymous.uVersion = NOTIFYICON_VERSION_4;
+    let _ = unsafe { Shell_NotifyIconW(NIM_SETVERSION, &data) };
+    true
+}
 
 #[derive(Clone)]
 pub struct Monitor {
@@ -119,7 +179,11 @@ fn monitors() -> Vec<Monitor> {
 struct HookData {
     ctx: egui::Context,
     watch: Mutex<EdgeWatcher>,
-    context_click: Mutex<Option<[f32; 2]>>,
+    resize_anchor: Mutex<ResizeAnchor>,
+    dismiss_menu: AtomicBool,
+    explicit_hidden: AtomicBool,
+    tray_icon: usize,
+    taskbar_created: u32,
     action: AtomicU8,
     interacting: AtomicBool,
     moved: AtomicBool,
@@ -141,9 +205,11 @@ fn observe_cursor(hwnd_value: usize, state: Arc<HookData>) {
     let hwnd = HWND(hwnd_value as *mut std::ffi::c_void);
     let mut foreground = 0usize;
     let mut last_raise = Instant::now();
+    let mut was_pressed = false;
     loop {
         let watcher = state.watch.lock().unwrap_or_else(|e| e.into_inner());
-        let interval = if watcher.enabled {
+        let menu_open = state.menu_open.load(Ordering::Relaxed);
+        let interval = if watcher.enabled || menu_open {
             Duration::from_millis(30)
         } else {
             Duration::from_secs(1)
@@ -155,7 +221,10 @@ fn observe_cursor(hwnd_value: usize, state: Arc<HookData>) {
         if state.stop.load(Ordering::Acquire) || !state.alive.load(Ordering::Acquire) {
             break;
         }
-        if !watcher.enabled || unsafe { IsIconic(hwnd) }.as_bool() {
+        if (!watcher.enabled && !menu_open)
+            || state.explicit_hidden.load(Ordering::Acquire)
+            || unsafe { IsIconic(hwnd) }.as_bool()
+        {
             continue;
         }
         let mut point = POINT::default();
@@ -167,12 +236,23 @@ fn observe_cursor(hwnd_value: usize, state: Arc<HookData>) {
         let changed = active != foreground;
         foreground = active;
         let pressed = unsafe { GetAsyncKeyState(VK_LBUTTON.0 as i32) } < 0;
+        let any_pressed = pressed || unsafe { GetAsyncKeyState(VK_RBUTTON.0 as i32) } < 0;
+        let inside = watcher.bounds.contains([point.x, point.y]);
+        if menu_open && !inside && any_pressed && !was_pressed {
+            state.dismiss_menu.store(true, Ordering::Release);
+            state.ctx.request_repaint();
+        }
+        was_pressed = any_pressed;
+        // An integral settings screen or volume panel only holds the dropdown while
+        // the pointer is still inside. Leaving it restarts the usual hide delay.
+        watcher.hold_open = menu_open && inside;
         let action = watcher.poll(
             [point.x, point.y],
             pressed || state.interacting.load(Ordering::Relaxed),
             now,
         );
-        let raise = watcher.expanded
+        let raise = watcher.enabled
+            && watcher.expanded
             && (changed
                 || (watcher.bounds.contains([point.x, point.y])
                     && now.duration_since(last_raise) >= Duration::from_millis(400)));
@@ -216,11 +296,13 @@ unsafe extern "system" fn window_hook(
 ) -> LRESULT {
     // SAFETY: NativeWindow owns this stable Arc and unregisters before releasing it.
     let state = unsafe { &*(data as *const HookData) };
+    if message == state.taskbar_created && message != 0 {
+        // Explorer can restart independently; re-register the same icon and HWND.
+        let _ = add_tray(hwnd, state.tray_icon);
+        return LRESULT(0);
+    }
     match message {
-        WM_NCHITTEST
-            if !state.collapsed.load(Ordering::Relaxed)
-                && !state.menu_open.load(Ordering::Relaxed) =>
-        {
+        WM_NCHITTEST if !state.collapsed.load(Ordering::Relaxed) => {
             if state.animating.load(Ordering::Relaxed) {
                 return LRESULT(HTCLIENT as isize);
             }
@@ -250,43 +332,97 @@ unsafe extern "system" fn window_hook(
             };
             return LRESULT(hit as isize);
         }
-        WM_NCRBUTTONUP if wparam.0 == HTCAPTION as usize => {
-            let mut point = screen_point(lparam);
-            unsafe {
-                let _ = ScreenToClient(hwnd, &mut point);
-            }
-            let scale = unsafe { GetDpiForWindow(hwnd) }.max(96) as f32 / 96.0;
-            *state
-                .context_click
-                .lock()
-                .unwrap_or_else(|e| e.into_inner()) =
-                Some([point.x as f32 / scale, point.y as f32 / scale]);
-            state.ctx.request_repaint();
-            return LRESULT(0);
-        }
+        WM_NCRBUTTONUP => return LRESULT(0),
+        WM_NCLBUTTONDBLCLK if state.dropdown.load(Ordering::Relaxed) => return LRESULT(0),
         WM_ENTERSIZEMOVE => {
             state.interacting.store(true, Ordering::Relaxed);
+            let mut rect = RECT::default();
+            if unsafe { GetWindowRect(hwnd, &mut rect) }.is_ok() {
+                state
+                    .resize_anchor
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .start = bounds(rect);
+            }
         }
         WM_MOVING => {
             state.moved.store(true, Ordering::Relaxed);
         }
         WM_SIZING => {
             state.resized.store(true, Ordering::Relaxed);
+            if state.dropdown.load(Ordering::Relaxed) && lparam.0 != 0 {
+                let anchor = *state
+                    .resize_anchor
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
+                // SAFETY: WM_SIZING supplies a live writable RECT. Returning TRUE lets
+                // Windows apply this anchored rectangle throughout its native size loop.
+                let proposed = unsafe { &mut *(lparam.0 as *mut RECT) };
+                let delta = if wparam.0 == WMSZ_BOTTOMLEFT as usize {
+                    anchor.start.x - proposed.left
+                } else {
+                    proposed.right - (anchor.start.x + anchor.start.width)
+                };
+                let width = if anchor.alignment == Alignment::Center {
+                    anchor.start.width.saturating_add(delta.saturating_mul(2))
+                } else {
+                    proposed.right - proposed.left
+                };
+                let min_width = (MIN_WIDTH * anchor.scale).round() as i32;
+                let max_width = ((1400.0 * anchor.scale).round() as i32)
+                    .min(anchor.screen.width)
+                    .max(1);
+                let min_height = (MIN_HEIGHT * anchor.scale).round() as i32;
+                let max_height = ((900.0 * anchor.scale).round() as i32)
+                    .min(anchor.screen.height)
+                    .max(1);
+                let width = width.clamp(min_width.min(max_width), max_width);
+                let height = (proposed.bottom - anchor.screen.y)
+                    .clamp(min_height.min(max_height), max_height);
+                let rect =
+                    Bounds::anchored(anchor.screen, [width, height], anchor.alignment, false);
+                *proposed = RECT {
+                    left: rect.x,
+                    top: rect.y,
+                    right: rect.x + rect.width,
+                    bottom: rect.y + rect.height,
+                };
+                state.ctx.request_repaint();
+                return LRESULT(1);
+            }
         }
         WM_EXITSIZEMOVE => {
             state.interacting.store(false, Ordering::Relaxed);
             state.ctx.request_repaint();
         }
-        WM_ACTIVATE if wparam.0 & 0xffff != WA_INACTIVE as usize => {
-            state.activated.store(true, Ordering::Relaxed);
+        WM_ACTIVATE => {
+            if wparam.0 & 0xffff != WA_INACTIVE as usize {
+                state.activated.store(true, Ordering::Relaxed);
+            } else if state.menu_open.load(Ordering::Relaxed) {
+                state.dismiss_menu.store(true, Ordering::Release);
+            }
             state.ctx.request_repaint();
+        }
+        WM_TRAY_ACTION => {
+            if lparam.0 as u32 & 0xffff == WM_LBUTTONDBLCLK {
+                state.explicit_hidden.store(false, Ordering::Release);
+                state.action.store(4, Ordering::Release);
+                unsafe {
+                    let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+                    let _ = SetForegroundWindow(hwnd);
+                }
+                state.ctx.request_repaint();
+            }
+            return LRESULT(0);
         }
         WM_DISPLAYCHANGE | WM_DPICHANGED => {
             state.displays_changed.store(true, Ordering::Relaxed);
             state.ctx.request_repaint();
         }
         WM_EDGE_ACTION => {
-            if state.action.load(Ordering::Acquire) == 1 {
+            if state.action.load(Ordering::Acquire) == 1
+                && !state.explicit_hidden.load(Ordering::Acquire)
+            {
                 // Showing without activation preserves the foreground application's keyboard focus.
                 unsafe {
                     let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
@@ -299,6 +435,7 @@ unsafe extern "system" fn window_hook(
             state.alive.store(false, Ordering::Relaxed);
             state.wake.notify_all();
             unsafe {
+                let _ = Shell_NotifyIconW(NIM_DELETE, &tray_data(hwnd, state.tray_icon));
                 let _ = RemoveWindowSubclass(hwnd, Some(window_hook), SUBCLASS_ID);
             }
         }
@@ -314,6 +451,7 @@ struct NativeWindow {
     observer: Option<JoinHandle<()>>,
     topmost: Option<bool>,
     visible: bool,
+    tray_icon: HICON,
     _ui_thread: PhantomData<Rc<()>>,
 }
 
@@ -326,10 +464,43 @@ impl NativeWindow {
             return Err("Esta versão requer Windows.".into());
         };
         let hwnd = HWND(handle.hwnd.get() as *mut std::ffi::c_void);
+        // Reuse the existing application icon; the copied handle belongs to us.
+        let mut icon_value = unsafe {
+            SendMessageW(
+                hwnd,
+                WM_GETICON,
+                Some(WPARAM(ICON_SMALL as usize)),
+                Some(LPARAM(0)),
+            )
+        }
+        .0 as usize;
+        if icon_value == 0 {
+            icon_value = unsafe { GetClassLongPtrW(hwnd, GCLP_HICONSM) };
+        }
+        if icon_value == 0 {
+            icon_value = unsafe {
+                SendMessageW(
+                    hwnd,
+                    WM_GETICON,
+                    Some(WPARAM(ICON_BIG as usize)),
+                    Some(LPARAM(0)),
+                )
+            }
+            .0 as usize;
+        }
+        let tray_icon = if icon_value != 0 {
+            unsafe { CopyIcon(HICON(icon_value as *mut std::ffi::c_void))? }
+        } else {
+            unsafe { CopyIcon(LoadIconW(None, IDI_APPLICATION)?)? }
+        };
         let data = Arc::new(HookData {
             ctx: cc.egui_ctx.clone(),
             watch: Mutex::new(EdgeWatcher::default()),
-            context_click: Mutex::new(None),
+            resize_anchor: Mutex::new(ResizeAnchor::default()),
+            dismiss_menu: AtomicBool::new(false),
+            explicit_hidden: AtomicBool::new(false),
+            tray_icon: tray_icon.0 as usize,
+            taskbar_created: unsafe { RegisterWindowMessageW(w!("TaskbarCreated")) },
             action: AtomicU8::new(0),
             interacting: AtomicBool::new(false),
             moved: AtomicBool::new(false),
@@ -355,6 +526,9 @@ impl NativeWindow {
         }
         .as_bool()
         {
+            unsafe {
+                let _ = DestroyIcon(tray_icon);
+            }
             return Err("Não foi possível habilitar o arraste nativo da janela.".into());
         }
         let mut native = Self {
@@ -363,8 +537,31 @@ impl NativeWindow {
             observer: None,
             topmost: None,
             visible: true,
+            tray_icon,
             _ui_thread: PhantomData,
         };
+        // The root is a tool window for its entire lifetime. There is no helper
+        // HWND and reveal/hide never toggles taskbar or Alt+Tab eligibility.
+        unsafe {
+            let style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            SetWindowLongPtrW(
+                hwnd,
+                GWL_EXSTYLE,
+                (style & !(WS_EX_APPWINDOW.0 as isize)) | WS_EX_TOOLWINDOW.0 as isize,
+            );
+            SetWindowPos(
+                hwnd,
+                None,
+                0,
+                0,
+                0,
+                0,
+                SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER,
+            )?;
+        }
+        if !add_tray(hwnd, tray_icon.0 as usize) {
+            return Err("Não foi possível criar o ícone na bandeja do Windows. O aplicativo não será ocultado.".into());
+        }
         // egui paints its own corners: suppress a second Windows 11 corner mask.
         unsafe {
             let _ = DwmSetWindowAttribute(
@@ -439,8 +636,13 @@ impl Drop for NativeWindow {
         if self.data.alive.load(Ordering::Relaxed) {
             // SAFETY: same UI thread, unregister before HookData is freed.
             unsafe {
+                let _ =
+                    Shell_NotifyIconW(NIM_DELETE, &tray_data(self.hwnd, self.tray_icon.0 as usize));
                 let _ = RemoveWindowSubclass(self.hwnd, Some(window_hook), SUBCLASS_ID);
             }
+        }
+        unsafe {
+            let _ = DestroyIcon(self.tray_icon);
         }
     }
 }
@@ -476,11 +678,14 @@ impl WindowManager {
     }
 
     pub fn collapsed(&self) -> bool {
-        self.collapsed && !self.slide.moving(Instant::now())
+        self.native.data.explicit_hidden.load(Ordering::Acquire)
+            || (self.collapsed && !self.slide.moving(Instant::now()))
     }
 
     pub fn scene_height(&self, visible_height: f32) -> f32 {
-        if self.preferences.mode == Mode::Dropdown {
+        if self.preferences.mode == Mode::Dropdown
+            && !self.native.data.interacting.load(Ordering::Relaxed)
+        {
             self.scene_height
         } else {
             visible_height
@@ -488,22 +693,39 @@ impl WindowManager {
     }
 
     pub fn set_hold_open(&self, hold: bool) {
-        self.native.data.menu_open.store(hold, Ordering::Relaxed);
+        let changed = self.native.data.menu_open.swap(hold, Ordering::AcqRel) != hold;
         self.native
             .data
             .watch
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .hold_open = hold;
+        if changed {
+            self.native.data.wake.notify_all();
+        }
     }
 
-    pub fn context_click(&self) -> Option<[f32; 2]> {
+    pub fn take_dismiss_menu(&self) -> bool {
+        self.native.data.dismiss_menu.swap(false, Ordering::AcqRel)
+    }
+
+    /// Explicitly hidden panels are restored only by a tray double-click, never
+    /// by a cursor touching the edge. This is separate from automatic collapse.
+    pub fn hide(&mut self) {
         self.native
             .data
-            .context_click
+            .explicit_hidden
+            .store(true, Ordering::Release);
+        self.native.data.action.store(0, Ordering::Release);
+        self.set_hold_open(false);
+        self.native
+            .data
+            .watch
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .take()
+            .enabled = false;
+        self.native.show(false);
+        self.native.data.wake.notify_all();
     }
 
     fn current_monitor(&self) -> Option<Monitor> {
@@ -623,14 +845,46 @@ impl WindowManager {
         }
         match self.native.data.action.swap(0, Ordering::Relaxed) {
             1 => self.reveal(),
-            2 if !hold_open => self.collapse(),
+            2 => {
+                self.native.data.dismiss_menu.store(true, Ordering::Release);
+                self.set_hold_open(false);
+                self.collapse();
+            }
             3 => self.force_raise = true,
+            4 => {
+                self.native.data.dismiss_menu.store(true, Ordering::Release);
+                self.reveal();
+            }
             _ => {}
+        }
+        if self.native.data.explicit_hidden.load(Ordering::Acquire) {
+            self.set_hold_open(false);
+            self.native
+                .data
+                .watch
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .enabled = false;
+            return Ok(());
         }
         let now = Instant::now();
         let animating = self.slide.moving(now);
         let fraction = self.slide.value(now);
         let dropdown = self.preferences.mode == Mode::Dropdown;
+        if dropdown
+            && !self.native.data.interacting.load(Ordering::Relaxed)
+            && let Some(monitor) = self.selected_monitor()
+        {
+            let mut anchor = self
+                .native
+                .data
+                .resize_anchor
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            anchor.screen = monitor.bounds;
+            anchor.alignment = self.preferences.alignment;
+            anchor.scale = monitor.scale;
+        }
         self.native.data.dropdown.store(dropdown, Ordering::Relaxed);
         self.native
             .data

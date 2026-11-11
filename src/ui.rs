@@ -16,24 +16,6 @@ pub(crate) fn text(
     painter.text(position, anchor, value, FontId::proportional(size), color);
 }
 
-pub(crate) fn text_block(
-    painter: &egui::Painter,
-    position: Pos2,
-    width: f32,
-    rows: usize,
-    value: &str,
-    size: f32,
-    color: Color32,
-) {
-    let mut job =
-        egui::text::LayoutJob::simple(value.into(), FontId::proportional(size), color, width);
-    job.wrap.max_rows = rows;
-    job.wrap.break_anywhere = true;
-    job.wrap.overflow_character = Some('…');
-    let galley = painter.layout_job(job);
-    painter.galley(position, galley, color);
-}
-
 #[derive(Clone, Copy)]
 pub(crate) enum Icon {
     Menu,
@@ -41,11 +23,10 @@ pub(crate) enum Icon {
     Play,
     Pause,
     Next,
-    Heart,
+    Add,
     Volume,
     Playlist,
     Note,
-    Minimize,
     Close,
 }
 
@@ -138,22 +119,10 @@ pub(crate) fn draw_icon(painter: &egui::Painter, center: Pos2, icon: Icon, color
                 Stroke::new(2.5_f32, color),
             );
         }
-        Icon::Heart => {
-            painter.add(Shape::closed_line(
-                vec![
-                    p(0.0, 7.0),
-                    p(-8.0, -1.0),
-                    p(-8.0, -5.0),
-                    p(-5.0, -8.0),
-                    p(-2.0, -8.0),
-                    p(0.0, -5.0),
-                    p(2.0, -8.0),
-                    p(5.0, -8.0),
-                    p(8.0, -5.0),
-                    p(8.0, -1.0),
-                ],
-                Stroke::new(1.4_f32, color),
-            ));
+        Icon::Add => {
+            painter.circle_stroke(center, 8.0, Stroke::new(1.4_f32, color));
+            painter.line_segment([p(-4.0, 0.0), p(4.0, 0.0)], stroke);
+            painter.line_segment([p(0.0, -4.0), p(0.0, 4.0)], stroke);
         }
         Icon::Volume => {
             painter.add(Shape::closed_line(
@@ -183,9 +152,6 @@ pub(crate) fn draw_icon(painter: &egui::Painter, center: Pos2, icon: Icon, color
             painter.line_segment([p(8.0, -12.0), p(8.0, 3.0)], Stroke::new(2.0_f32, color));
             painter.circle_filled(p(-6.0, 7.0), 4.0, color);
             painter.circle_filled(p(5.0, 4.0), 4.0, color);
-        }
-        Icon::Minimize => {
-            painter.line_segment([p(-4.0, 0.0), p(4.0, 0.0)], Stroke::new(1.2_f32, color));
         }
         Icon::Close => {
             painter.line_segment([p(-4.0, -4.0), p(4.0, 4.0)], Stroke::new(1.2_f32, color));

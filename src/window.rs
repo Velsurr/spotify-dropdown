@@ -302,8 +302,8 @@ unsafe extern "system" fn window_hook(
         return LRESULT(0);
     }
     match message {
-        WM_NCHITTEST if !state.collapsed.load(Ordering::Relaxed) => {
-            if state.animating.load(Ordering::Relaxed) {
+        WM_NCHITTEST => {
+            if state.collapsed.load(Ordering::Relaxed) || state.animating.load(Ordering::Relaxed) {
                 return LRESULT(HTCLIENT as isize);
             }
             let mut point = screen_point(lparam);

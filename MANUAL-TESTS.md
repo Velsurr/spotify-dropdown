@@ -1,44 +1,20 @@
-# Validação manual — v0.2.2 Alpha
+# Validação manual — candidata à v0.2.2 Alpha
 
-**Pendente de execução pelo usuário.** Nesta versão, o Codex apenas revisa o código, verifica a compilação e gera o executável. Nenhum resultado funcional ou visual está aprovado pela compilação.
+**Checklist para o usuário; ainda não executado.** A versão permanece `0.2.2-alpha`. Compilação e análise estática não aprovam aparência ou funcionamento. Não publicar a tag definitiva nem a Release até a aprovação explícita do usuário.
 
-Extraia o ZIP em uma pasta gravável e abra `Spotify Dropdown.exe`. Use o menu **•••** para os ajustes. As versões anteriores e suas preferências foram preservadas.
+Extraia o ZIP em pasta gravável e abra `Spotify Dropdown.exe`. Compare com suas capturas de referência em janela ampla, estreita e na altura mínima.
 
-## Janela e bandeja
+- [ ] **Composição normal:** controles visualmente menores, áreas clicáveis confortáveis e menos espaço vazio entre informações e reprodução. Janelas muito largas não devem espalhar excessivamente os grupos.
+- [ ] **Compacto horizontal:** na altura mínima, capa sempre visível e proporcional à esquerda, informações ao lado, anterior/reproduzir-pausar/próxima à direita e progresso discreto abaixo. Nenhum controle ou texto deve se sobrepor.
+- [ ] **Redimensionamento:** varie largura e altura devagar, inclusive perto da transição de layout. Confirme ausência de cortes, saltos bruscos ou tremulações; o limite mínimo vertical permanece preservado.
+- [ ] **Textos:** música, artista e álbum longos devem permanecer em uma linha, com rolagem para a direita somente quando necessário e sem ultrapassar suas áreas.
+- [ ] **Menu:** confira ausência da opção de manter a janela no topo; Esconder/Fechar e seleções ativadas em verde, sem aparência de seleção nas opções desativadas. X volta ao controlador; clique fora fecha os ajustes; botão direito não abre menu.
+- [ ] **Sliders:** atraso de recolhimento e volume com preenchimento verde, cursor branco circular e trilho cinza-escuro. Confira o indicador de progresso com a mesma identidade visual, mantendo-o somente leitura.
+- [ ] **Volume:** passe o cursor no alto-falante, ajuste o slider vertical e mova entre botão/painel. Ele deve permanecer aberto nesse trajeto, fechar ao sair e não mostrar porcentagem numérica nem ultrapassar a janela.
+- [ ] **Mute:** clique para mutar, confira a mudança do ícone e clique para restaurar o áudio no nível anterior. Teste também mute/volume alterados pelo Mixer do Windows; aguarde a atualização do estado na interface.
+- [ ] **Isolamento do áudio:** ajuste/mute Spotify com outro aplicativo reproduzindo som. O volume global e o áudio do outro aplicativo devem permanecer inalterados. Repita em outras saídas ou sessões, quando disponíveis.
+- [ ] **Regressões do dropdown:** confirme topo fixo durante todo o arraste, largura simétrica no alinhamento central, limites do monitor, abertura pelo topo e recolhimento com o atraso escolhido. Repita em outra escala DPI/monitor, quando possível.
+- [ ] **Bandeja e comandos:** Esconder mantém o ícone e desativa o gatilho do topo; duplo clique reabre. Fechar encerra o processo e remove o ícone. Abrir/recolher não deve criar botão na barra de tarefas/Alt+Tab.
+- [ ] **Mídia e indisponibilidade:** verifique capa, metadados, anterior/reproduzir-pausar/próxima e estado do cabeçalho; feche/reabra o Spotify para conferir desabilitação e reconexão. Adicionar à biblioteca e playlists continuam indisponíveis.
 
-- [ ] Confirme que existe um ícone permanente na bandeja do Windows, inclusive quando a janela está recolhida ou escondida. Verifique também os ícones ocultos da bandeja.
-- [ ] Abra/recolha o dropdown várias vezes: nenhum botão do aplicativo deve aparecer na barra de tarefas ou no Alt+Tab.
-- [ ] Em **••• → Esconder**, confirme que o aplicativo continua executando, mas o topo da tela não abre o painel. Dê **dois cliques no ícone da bandeja** para reabrir.
-- [ ] Em **••• → Fechar**, confirme que a janela e o ícone da bandeja desaparecem e o processo encerra.
-- [ ] Arraste o cabeçalho para usar a janela livre; redimensione pelos cantos e confirme a preservação do tamanho ao reabrir.
-
-## Dropdown e redimensionamento
-
-- [ ] Ative o dropdown pelo menu e escolha monitor e alinhamento. Confirme que o painel permanece preso ao topo durante todo o arraste dos cantos inferiores.
-- [ ] No alinhamento **Centro**, aumente e diminua a largura: os lados devem se mover simetricamente. Em **Esquerda/Direita**, a borda correspondente deve permanecer ancorada.
-- [ ] Altere a altura: a borda superior deve ficar fixa; a inferior acompanha o arraste. A aresta superior não deve redimensionar.
-- [ ] Tente ultrapassar os limites mínimo/máximo e as bordas do monitor. Confirme que o painel permanece visível e sem tremulações ou sobreposições.
-- [ ] Repita em resoluções e escalas DPI diferentes, e em outro monitor, quando disponíveis.
-- [ ] Saia com o cursor: confira o recolhimento com o atraso escolhido, o desaparecimento completo e a reabertura ao encostar no topo na região do painel.
-- [ ] Repita sobre outro aplicativo. Tela cheia exclusiva e jogos que prendem o cursor precisam de verificação específica; não há garantia universal nesses cenários.
-
-## Menu e layout
-
-- [ ] Clique em **•••**: a janela inteira deve mostrar as configurações. Clique no **X** para voltar ao controlador. O botão direito não deve abrir um menu.
-- [ ] Com o menu aberto, clique fora da janela. O menu deve fechar e o dropdown deve recolher normalmente se o cursor permanecer fora.
-- [ ] Teste tamanhos mínimo, intermediário e máximo, com larguras diferentes: anterior, reproduzir/pausar, próxima, adicionar e volume devem permanecer separados e dentro do contêiner.
-- [ ] Reduza a altura até o modo compacto: a capa deve sumir e os controles essenciais permanecer acessíveis. Expanda para a capa reaparecer; varie lentamente perto do limite para verificar estabilidade.
-- [ ] Use faixas com nomes longos de música, artista e álbum: cada texto deve ocupar uma linha, rolar suavemente para a direita apenas quando necessário e permanecer recortado à própria área.
-- [ ] Confirme fundo preto, capa menor com arredondamento discreto e sem distorção, ausência dos antigos sliders de dimensões e dos botões tradicionais de minimizar/fechar.
-
-## Spotify e volume
-
-- [ ] Com Spotify Desktop reproduzindo neste computador, confira faixa, artista, álbum, capa e tempos. Verifique anterior, reproduzir/pausar e próxima.
-- [ ] Confirme que o cabeçalho mostra círculo verde + **REPRODUZINDO**, ou duas barras verdes + **PAUSADO**, conforme o estado real, sem indicador duplicado junto ao progresso.
-- [ ] Passe o cursor sobre volume: o painel vertical deve abrir junto ao botão. Ajuste de 0% a 100% e confira o volume do Spotify no Mixer do Windows.
-- [ ] Enquanto ajusta o Spotify, confira que o volume global e o áudio de outro aplicativo permanecem inalterados. Teste também sessões/saídas de áudio diferentes, quando disponíveis.
-- [ ] Mova o cursor entre botão e painel: ele deve permanecer aberto. Saia de ambos: ele deve desaparecer sem ultrapassar a janela ou o monitor, inclusive no modo compacto.
-- [ ] Feche o Spotify ou deixe-o sem sessão de áudio; confira que controles indisponíveis são desabilitados e o aplicativo continua responsivo. Reabra o Spotify e verifique a reconexão.
-- [ ] O botão de adicionar à biblioteca e playlists devem continuar desabilitados, sem simular integração.
-
-Ao relatar um problema, informe tamanho aproximado da janela, modo, alinhamento, monitor/escala DPI e sequência de ações. Capturas e gravações podem ser feitas manualmente pelo usuário.
+Tela cheia exclusiva, jogos que prendem o cursor e múltiplos dispositivos de áudio exigem conferência específica; não há garantia universal. Ao relatar um problema, indique tamanho da janela, modo, alinhamento, monitor/escala DPI e sequência de ações. Capturas e gravações podem ser feitas manualmente pelo usuário.

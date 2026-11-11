@@ -3,12 +3,15 @@ use crate::{
     media::{Artwork, Backend, BackendState, Command, Snapshot},
     model::{Playback, format_time},
     preferences::{Alignment, Mode, Preferences},
-    ui::{BORDER, DIM, GREEN, Icon, MUTED, TEXT, draw_icon, icon_button, text},
+    ui::{
+        BORDER, DIM, GREEN, Icon, MUTED, SLIDER_KNOB, SLIDER_TRACK, TEXT, draw_icon, green_button,
+        green_checkbox, green_radio, icon_button, spotify_slider, text, transport_button,
+    },
     volume::VolumeBackend,
     window::WindowManager,
 };
 use eframe::egui::{
-    self, Align2, Color32, FontId, Pos2, Rect, Stroke, StrokeKind, TextureHandle, pos2, vec2,
+    self, Align2, Color32, FontId, Rect, Stroke, StrokeKind, TextureHandle, pos2, vec2,
 };
 use std::{
     sync::Arc,
@@ -123,15 +126,15 @@ impl SpotifyDropdown {
                     MenuTab::Settings => {
                         ui.strong("Exibição");
                         let mut dropdown = preferences.mode == Mode::Dropdown;
-                        if ui.checkbox(&mut dropdown, "Ativar modo dropdown").changed() {
+                        if green_checkbox(ui, &mut dropdown, "Ativar modo dropdown").changed() {
                             preferences.mode = if dropdown { Mode::Dropdown } else { Mode::Free };
                         }
                         ui.add_space(6.0);
                         ui.strong("Posição no topo");
                         ui.horizontal(|ui| {
-                            ui.radio_value(&mut preferences.alignment, Alignment::Left, "Esquerda");
-                            ui.radio_value(&mut preferences.alignment, Alignment::Center, "Centro");
-                            ui.radio_value(&mut preferences.alignment, Alignment::Right, "Direita");
+                            green_radio(ui, &mut preferences.alignment, Alignment::Left, "Esquerda");
+                            green_radio(ui, &mut preferences.alignment, Alignment::Center, "Centro");
+                            green_radio(ui, &mut preferences.alignment, Alignment::Right, "Direita");
                         });
                         let label = self.window.monitors.iter().enumerate().find(|(_,m)| m.device == preferences.monitor).map(|(i,m)| m.label(i)).unwrap_or_else(|| "Monitor atual".into());
                         egui::ComboBox::from_id_salt("monitor").width((content.width()-20.0).min(340.0)).selected_text(label).show_ui(ui, |ui| {
@@ -140,12 +143,15 @@ impl SpotifyDropdown {
                             }
                         });
                         ui.separator();
-                        ui.checkbox(&mut preferences.auto_hide, "Recolher quando o cursor sair");
-                        let delay = ui.add_enabled(preferences.auto_hide, egui::Slider::new(&mut self.delay_draft, 0.1..=5.0).step_by(0.1).suffix(" s").text("Recolher após"));
-                        if delay.drag_stopped() || (delay.changed() && !delay.dragged()) {
-                            preferences.hide_delay_ms = (self.delay_draft * 1000.0).round() as u64;
-                        }
-                        ui.add_enabled_ui(preferences.mode == Mode::Free, |ui| { ui.checkbox(&mut preferences.always_on_top, "Manter janela no topo"); });
+                        green_checkbox(ui, &mut preferences.auto_hide, "Recolher quando o cursor sair");
+                        ui.horizontal(|ui| {
+                            let delay = spotify_slider(ui, "hide-delay", &mut self.delay_draft, 0.1..=5.0, false, 100.0, preferences.auto_hide, Some(0.1));
+                            if delay.drag_stopped() || (delay.changed() && !delay.dragged()) {
+                                preferences.hide_delay_ms = (self.delay_draft * 1000.0).round() as u64;
+                            }
+                            ui.label(format!("{:.1} s", self.delay_draft));
+                            ui.label("Recolher após");
+                        });
                         ui.separator();
                         ui.small("Arraste o cabeçalho para mover. No dropdown, redimensione pelos cantos inferiores. Esconder desativa a abertura pelo topo até o duplo clique na bandeja.");
                         if let Some(error) = &self.window.error { ui.colored_label(Color32::from_rgb(224,177,103),error); }
@@ -155,23 +161,25 @@ impl SpotifyDropdown {
         });
         self.window.apply(preferences);
         let y = panel.bottom() - 45.0;
-        if ui
-            .put(
-                Rect::from_min_size(pos2(panel.left() + 20.0, y), vec2(118.0, 31.0)),
-                egui::Button::new("Esconder"),
-            )
-            .clicked()
+        if green_button(
+            ui,
+            Rect::from_min_size(pos2(panel.left() + 20.0, y), vec2(118.0, 31.0)),
+            "hide",
+            "Esconder",
+        )
+        .clicked()
         {
             self.menu_open = false;
             self.volume_open = false;
             self.window.hide();
         }
-        if ui
-            .put(
-                Rect::from_min_size(pos2(panel.right() - 138.0, y), vec2(118.0, 31.0)),
-                egui::Button::new("Fechar"),
-            )
-            .clicked()
+        if green_button(
+            ui,
+            Rect::from_min_size(pos2(panel.right() - 138.0, y), vec2(118.0, 31.0)),
+            "quit",
+            "Fechar",
+        )
+        .clicked()
         {
             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
         }
@@ -213,7 +221,7 @@ impl SpotifyDropdown {
         }
     }
 
-    fn track_labels(&self, ui: &egui::Ui, area: Rect, snapshot: &Snapshot) {
+    fn track_labels(&self, ui: &egui::Ui, area: Rect, snapshot: &Snapshot, compactness: f32) {
         let title = if !snapshot.connected {
             "Aguardando Spotify"
         } else if snapshot.title.is_empty() {
@@ -233,11 +241,7 @@ impl SpotifyDropdown {
         } else {
             &snapshot.album
         };
-        let title_size = if self.compact {
-            18.0
-        } else {
-            (area.width() / 16.0).clamp(20.0, 26.0)
-        };
+        let title_size = egui::lerp((area.width() / 16.0).clamp(20.0, 26.0)..=18.0, compactness);
         let row_height = title_size + 4.0;
         let total = row_height + 30.0;
         let y = area.center().y - total / 2.0;
@@ -290,10 +294,8 @@ impl SpotifyDropdown {
         offset: egui::Vec2,
         state: &BackendState,
     ) {
-        let card = layout.playback.translate(offset);
         let painter = ui.painter().clone();
-        painter.rect_filled(card, 10, Color32::from_rgb(17, 17, 17));
-        self.transport(ui, layout.transport + offset, &state.snapshot, state.busy);
+        self.transport(ui, layout, offset, &state.snapshot, state.busy);
         icon_button(
             ui,
             layout.add.translate(offset),
@@ -303,12 +305,8 @@ impl SpotifyDropdown {
             false,
             Icon::Add,
         );
-        let row_y = card.bottom() - 18.0;
-        let bar = Rect::from_min_size(
-            pos2(card.left() + 59.0, row_y - 2.0),
-            vec2(card.width() - 118.0, 4.0),
-        );
-        painter.rect_filled(bar, 2, Color32::from_rgb(43, 43, 43));
+        let bar = layout.timeline.translate(offset);
+        painter.rect_filled(bar, 2, SLIDER_TRACK);
         let mut current = "—:—".to_string();
         let mut total = "—:—".to_string();
         if let Some(timeline) = &state.snapshot.timeline {
@@ -323,20 +321,37 @@ impl SpotifyDropdown {
                 2,
                 GREEN,
             );
+            painter.circle_filled(
+                pos2(bar.left() + bar.width() * fraction, bar.center().y),
+                4.0,
+                SLIDER_KNOB,
+            );
             current = format_time(position);
             total = format_time(timeline.duration);
         }
         text(
-            &painter,
-            pos2(card.left() + 12.0, row_y),
+            &painter.with_clip_rect(
+                Rect::from_min_size(
+                    layout.current_time + offset - vec2(0.0, 8.0),
+                    vec2(36.0, 16.0),
+                )
+                .intersect(ui.clip_rect()),
+            ),
+            layout.current_time + offset,
             Align2::LEFT_CENTER,
             &current,
             10.0,
             MUTED,
         );
         text(
-            &painter,
-            pos2(card.right() - 12.0, row_y),
+            &painter.with_clip_rect(
+                Rect::from_min_size(
+                    layout.total_time + offset - vec2(36.0, 8.0),
+                    vec2(36.0, 16.0),
+                )
+                .intersect(ui.clip_rect()),
+            ),
+            layout.total_time + offset,
             Align2::RIGHT_CENTER,
             &total,
             10.0,
@@ -364,12 +379,21 @@ impl SpotifyDropdown {
         .on_hover_text(help);
     }
 
-    fn transport(&self, ui: &mut egui::Ui, center: Pos2, snapshot: &Snapshot, busy: bool) {
+    fn transport(
+        &self,
+        ui: &mut egui::Ui,
+        layout: &PlayerLayout,
+        offset: egui::Vec2,
+        snapshot: &Snapshot,
+        busy: bool,
+    ) {
+        let center = layout.transport + offset;
+        let step = 50.0 - 14.0 * layout.compactness;
         let available = snapshot.connected && !busy;
         let playing = snapshot.playback == Playback::Playing;
         for (offset, id, label, enabled, primary, icon, command) in [
             (
-                -62.0,
+                -step,
                 "previous",
                 "Música anterior",
                 available && snapshot.capabilities.previous,
@@ -387,7 +411,7 @@ impl SpotifyDropdown {
                 Command::Toggle,
             ),
             (
-                62.0,
+                step,
                 "next",
                 "Próxima música",
                 available && snapshot.capabilities.next,
@@ -396,10 +420,21 @@ impl SpotifyDropdown {
                 Command::Next,
             ),
         ] {
-            let size = if primary { 46.0 } else { 34.0 };
-            if icon_button(
+            let size = if primary {
+                44.0 - 4.0 * layout.compactness
+            } else {
+                32.0
+            };
+            let visual_size = if primary {
+                36.0 - 6.0 * layout.compactness
+            } else {
+                26.0
+            };
+            if transport_button(
                 ui,
                 Rect::from_center_size(center + vec2(offset, 0.0), vec2(size, size)),
+                visual_size,
+                0.78 - 0.10 * layout.compactness,
                 id,
                 label,
                 enabled,
@@ -420,10 +455,11 @@ impl SpotifyDropdown {
             return;
         }
         let state = self.volume.state();
-        let help = state
-            .error
-            .as_deref()
-            .unwrap_or("Volume da sessão de áudio do Spotify");
+        let help = state.error.as_deref().unwrap_or(if state.muted {
+            "Clique para ativar o som do Spotify"
+        } else {
+            "Clique para mutar o Spotify; passe o cursor para ajustar o volume"
+        });
         let response = icon_button(
             ui,
             button,
@@ -431,8 +467,15 @@ impl SpotifyDropdown {
             help,
             state.available,
             false,
-            Icon::Volume,
+            if state.muted {
+                Icon::VolumeMuted
+            } else {
+                Icon::Volume
+            },
         );
+        if response.clicked() {
+            self.volume.toggle_mute();
+        }
         if response.hovered() || response.clicked() {
             if !self.volume_open {
                 self.volume_draft = state.level;
@@ -476,19 +519,20 @@ impl SpotifyDropdown {
                         ui.spacing_mut().slider_width = 88.0;
                         ui.spacing_mut().item_spacing.y = 4.0;
                         ui.vertical_centered(|ui| {
-                            let mut percent = self.volume_draft * 100.0;
-                            let slider = ui.add_sized(
-                                vec2(20.0, 88.0),
-                                egui::Slider::new(&mut percent, 0.0..=100.0)
-                                    .vertical()
-                                    .show_value(false),
+                            let slider = spotify_slider(
+                                ui,
+                                "spotify-volume",
+                                &mut self.volume_draft,
+                                0.0..=1.0,
+                                true,
+                                88.0,
+                                true,
+                                None,
                             );
                             if slider.changed() {
                                 self.volume_changed = Instant::now();
-                                self.volume_draft = percent / 100.0;
                                 self.volume.set_level(self.volume_draft);
                             }
-                            ui.small(format!("{:.0}%", self.volume_draft * 100.0));
                         });
                     });
             });
@@ -596,14 +640,23 @@ impl eframe::App for SpotifyDropdown {
                 if self.menu_open {
                     self.menu(ui, panel);
                 } else {
-                    let layout = PlayerLayout::new(panel.width(), height, self.compact);
-                    if let Some(cover) = layout.cover {
-                        self.cover(ui, cover.translate(panel.min.to_vec2()));
-                    }
+                    let blend = ctx.animate_bool_with_time(
+                        egui::Id::new("compact-layout"),
+                        self.compact,
+                        0.20,
+                    );
+                    let layout = PlayerLayout::new(panel.width(), height, blend);
+                    ui.painter().rect_filled(
+                        layout.playback.translate(panel.min.to_vec2()),
+                        10,
+                        Color32::from_rgb(17, 17, 17),
+                    );
+                    self.cover(ui, layout.cover.translate(panel.min.to_vec2()));
                     self.track_labels(
                         ui,
                         layout.labels.translate(panel.min.to_vec2()),
                         &state.snapshot,
+                        layout.compactness,
                     );
                     self.playback_card(ui, &layout, panel.min.to_vec2(), &state);
                     self.volume_control(

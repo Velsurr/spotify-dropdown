@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory=$true)]
     [ValidatePattern('^[0-9a-fA-F]{40}$')]
-    [string]$Commit
+    [string]$Commit,
+    [switch]$Candidate
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -12,6 +13,7 @@ if ($version -ne '0.2.2-alpha') { throw 'Este roteiro publica somente a pre-rele
 $tag = "v$version"
 $repository = 'Velsurr/spotify-dropdown'
 $archive = Get-ProjectArchive
+if ($Candidate) { $archive = Join-Path (Join-Path (Split-Path -Parent $archive) 'candidata') (Split-Path -Leaf $archive) }
 if (-not (Test-Path -LiteralPath $archive)) { throw 'Gere o executavel release e o ZIP antes de publicar.' }
 $ghCommand = Get-Command gh -ErrorAction SilentlyContinue
 if (-not $ghCommand) { throw 'GitHub CLI (gh) ausente. Sua instalacao exige autorizacao; este roteiro nao instala nem autentica ferramentas.' }

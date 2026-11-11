@@ -1,15 +1,16 @@
-# Spotify Dropdown — v0.2.2 Alpha
+# Spotify Dropdown — candidata à v0.2.2 Alpha
 
-Pré-release para validação manual. **A compilação não equivale à aprovação dos testes funcionais ou visuais.**
+**Notas preparadas para uma futura Release. A candidata ainda aguarda validação manual e aprovação explícita para publicação.** O número `0.2.2-alpha` permanece inalterado. Compilação não equivale à aprovação funcional ou visual.
 
-- Redimensionamento do dropdown ancorado ao topo, com largura simétrica no alinhamento central e limites do monitor.
-- Janela mantida na bandeja do Windows, com **Esconder**, retorno por duplo clique e **Fechar** no menu.
-- Configurações ocupam a própria janela; acesso exclusivo pelo botão de três pontos e fechamento ao clicar fora.
-- Controles e progresso reunidos no mesmo contêiner, botão de adicionar desabilitado sem sobreposição e estado real no cabeçalho.
-- Modo compacto automático sem capa, textos em uma linha com rolagem quando necessário, fundo mais preto e capa com arredondamento discreto.
-- Controle de volume das sessões de áudio do Spotify pelo Windows, sem alterar o volume global. Depende de uma sessão Spotify disponível.
-- Removidos os sliders de dimensões e os botões tradicionais de minimizar/fechar.
+- Modo compacto horizontal com capa sempre visível: informações à esquerda, controles de reprodução à direita e progresso inferior.
+- Controles visuais menores com áreas clicáveis preservadas; menos espaços vazios e limites para a expansão dos grupos em janelas amplas.
+- Botões Esconder/Fechar e seleções em verde; removida somente a opção do menu de manter a janela no topo.
+- Sliders com preenchimento verde, cursor branco circular e trilho escuro; popup de volume sem porcentagem numérica.
+- Clique no alto-falante alterna mute nas sessões de áudio do Spotify, preservando o ganho anterior de cada sessão e sem controlar o volume global.
+- Mantidos dropdown, ancoramento, redimensionamento simétrico, bandeja, menu integrado, controles de mídia e rolagem dos textos.
 
-Baixe e extraia `SpotifyDropdown-v0.2.2-alpha-windows-x64.zip`; abra `Spotify Dropdown.exe`. Não há instalador nesta atualização. Consulte `MANUAL-TESTS.md` no ZIP para o checklist completo.
+O pacote local `SpotifyDropdown-v0.2.2-alpha-windows-x64.zip` contém executável e documentação; extraia-o e abra `Spotify Dropdown.exe`. Não há instalador novo. Consulte `MANUAL-TESTS.md` para validar a candidata.
 
-Favoritos e playlists continuam indisponíveis. Progresso é somente leitura. Tela cheia exclusiva, jogos que prendem o cursor, DPI/múltiplos monitores e roteamento de áudio exigem validação manual. A integração de mídia permanece local, sem OAuth ou API Web do Spotify.
+Adicionar à biblioteca e playlists permanecem indisponíveis; progresso é somente leitura. Mute e roteamento de áudio, DPI/múltiplos monitores e transições de layout aguardam validação manual. Tela cheia exclusiva ou jogos que prendem o cursor continuam sem garantia universal. A integração permanece local, sem OAuth ou API Web do Spotify.
+
+**Não publicar esta candidata como aprovada, modificar releases anteriores ou criar a tag definitiva antes da autorização explícita do usuário.**

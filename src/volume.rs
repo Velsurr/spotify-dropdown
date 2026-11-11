@@ -33,14 +33,16 @@ const WRITE_INTERVAL: Duration = Duration::from_millis(40);
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct VolumeState {
     pub available: bool,
-    /// Session gain from 0.0 to 1.0. An externally muted session is represented as zero.
+    /// Stored session gain from 0.0 to 1.0, preserved independently of mute.
     pub level: f32,
+    pub muted: bool,
     pub error: Option<String>,
 }
 
 #[derive(Default)]
 struct Request {
     level: Option<f32>,
+    mute_toggles: bool,
     stop: bool,
 }
 
@@ -96,6 +98,21 @@ impl VolumeBackend {
         let mut request = lock.lock().unwrap_or_else(|e| e.into_inner());
         if !request.stop {
             request.level = Some(level.clamp(0.0, 1.0));
+            if level > 0.0 {
+                // A later positive slider adjustment supersedes earlier pending mute clicks.
+                request.mute_toggles = false;
+            }
+        }
+        drop(request);
+        wake.notify_one();
+    }
+
+    pub fn toggle_mute(&self) {
+        let (lock, wake) = &*self.request;
+        let mut request = lock.lock().unwrap_or_else(|e| e.into_inner());
+        if !request.stop {
+            // Preserve double-click parity without queuing an unbounded sequence.
+            request.mute_toggles = !request.mute_toggles;
         }
         drop(request);
         wake.notify_one();
@@ -250,14 +267,15 @@ fn read_state(sessions: &[Session]) -> VolumeState {
                 session
                     .volume
                     .GetMute()
-                    .map(|muted| if muted.as_bool() { 0.0 } else { level })
+                    .map(|muted| (level, muted.as_bool()))
             })
         };
         match result {
-            Ok(level) if level.is_finite() => {
+            Ok((level, muted)) if level.is_finite() => {
                 return VolumeState {
                     available: true,
                     level: level.clamp(0.0, 1.0),
+                    muted,
                     error: None,
                 };
             }
@@ -337,13 +355,13 @@ fn worker_loop(
         let timeout = refresh_at.saturating_duration_since(Instant::now());
         let (mut request, _) = wake
             .wait_timeout_while(request, timeout, |request| {
-                !request.stop && request.level.is_none()
+                !request.stop && request.level.is_none() && !request.mute_toggles
             })
             .unwrap_or_else(|e| e.into_inner());
         if request.stop {
             return;
         }
-        if request.level.is_none() {
+        if request.level.is_none() && !request.mute_toggles {
             continue;
         }
         let wait = WRITE_INTERVAL.saturating_sub(last_write.elapsed());
@@ -357,23 +375,36 @@ fn worker_loop(
             }
         }
         let level = request.level.take();
+        let toggle_mute = std::mem::take(&mut request.mute_toggles);
         drop(request);
-        if let Some(level) = level {
+        if level.is_some() || toggle_mute {
+            // Read the actual representative Spotify session at command time, so an
+            // external mixer mute is respected even between periodic refreshes.
+            let before = read_state(&current);
+            let mute = if level.is_some_and(|value| value > 0.0) {
+                Some(toggle_mute)
+            } else if toggle_mute && before.available {
+                Some(!before.muted)
+            } else {
+                None
+            };
             let mut failures = 0;
             for session in &current {
-                let result = unsafe {
-                    session
-                        .volume
-                        .SetMasterVolume(level, std::ptr::null())
-                        .and_then(|()| {
-                            // A positive explicit adjustment also unmutes only this Spotify session.
-                            if level > 0.0 {
-                                session.volume.SetMute(false, std::ptr::null())
-                            } else {
-                                Ok(())
-                            }
-                        })
-                };
+                // SetMute never rewrites the gain. Sessions with different levels
+                // therefore retain their own previous volume across mute/unmute.
+                let result = (|| -> Result<()> {
+                    if let Some(level) = level {
+                        unsafe {
+                            session.volume.SetMasterVolume(level, std::ptr::null())?;
+                        }
+                    }
+                    if let Some(mute) = mute {
+                        unsafe {
+                            session.volume.SetMute(mute, std::ptr::null())?;
+                        }
+                    }
+                    Ok(())
+                })();
                 failures += usize::from(result.is_err());
             }
             last_write = Instant::now();

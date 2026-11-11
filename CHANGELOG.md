@@ -2,14 +2,20 @@
 
 ## 0.2.2-alpha
 
-Implementação e compilação; validação funcional e visual manual pendente.
+Versão candidata em refinamento, sem incremento de versão. Validação funcional e visual manual e aprovação para publicação pendentes.
+
+- Capa sempre visível; modo compacto horizontal com capa/informações à esquerda, reprodução à direita e progresso inferior.
+- Ícones e botão de reprodução menores, com áreas clicáveis preservadas; espaçamento vertical reduzido e grupos com larguras máximas.
+- Esconder/Fechar e seleções do menu em verde; removida somente a opção de manter a janela no topo.
+- Sliders com preenchimento verde e cursor branco circular; popup de volume sem porcentagem numérica.
+- Clique no alto-falante alterna o mute das sessões Spotify, preservando os ganhos individuais e sem alterar o volume global.
 
 - Redimensionamento ancorado ao topo durante o arraste, com largura simétrica no alinhamento central e limites do monitor.
 - Bandeja persistente; janela fora da barra de tarefas/Alt+Tab; Esconder e Fechar no menu; retorno por duplo clique na bandeja.
 - Menu ocupa a própria janela, sem acesso pelo botão direito, e fecha ao clicar fora.
 - Controles de reprodução dentro do cartão de progresso, adicionar desabilitado em espaço separado e estado real no cabeçalho.
 - Removidos botões tradicionais de minimizar/fechar e sliders de dimensões.
-- Modo compacto automático sem capa, com transição estável perto do limite de altura.
+- Modo compacto automático horizontal, mantendo capa proporcional e limite mínimo vertical.
 - Textos em uma linha, com rolagem horizontal somente quando excedem a área disponível.
 - Controle de volume por sessão de áudio do Spotify, sem controle do volume global.
 - Fundo mais preto e capa menor com arredondamento discreto.

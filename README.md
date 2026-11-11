@@ -1,10 +1,10 @@
 # Spotify Dropdown — v0.2.2 Alpha
 
-Controlador local do Spotify Desktop para Windows 11 x64, feito em Rust/egui, sem OAuth. Este executável é uma **versão candidata da mesma v0.2.2-alpha**, pendente de validação manual. A publicação da Release aguarda aprovação explícita do usuário.
+Controlador local do Spotify Desktop para Windows 11 x64, feito em Rust/egui, sem OAuth. A publicação desta **v0.2.2-alpha** foi aprovada pelo usuário após sua avaliação manual da candidata. A versão continua experimental; isso não representa uma certificação de todos os cenários de uso.
 
 ## Abrir e usar
 
-1. Extraia o ZIP `SpotifyDropdown-v0.2.2-alpha-windows-x64.zip` em uma pasta gravável e abra **`Spotify Dropdown.exe`**. A candidata atual fica em `dist\v0.2.2-alpha\candidata\Spotify Dropdown.exe`; o executável anterior foi preservado. Não há instalador nesta atualização.
+1. Extraia o ZIP `SpotifyDropdown-v0.2.2-alpha-windows-x64.zip` em uma pasta gravável e abra **`Spotify Dropdown.exe`**. O pacote de publicação local fica em `dist\v0.2.2-alpha\publicacao`; o executável é idêntico ao da candidata aprovada, que foi preservada. Não há instalador nesta atualização.
 2. Abra o Spotify Desktop e reproduza uma música neste computador. Mantenha ativado **Configurações → Exibição → Mostrar o Desktop Overlay quando os controles de reprodução estiverem sendo usados**.
 3. Use **•••** para abrir os ajustes na própria janela; **X** retorna ao controlador. O botão direito não abre mais o menu. A aba **Sobre** informa a versão.
 4. Ative o **modo dropdown**, escolha monitor e alinhamento. Ao recolher, o painel fica invisível; encoste o cursor no topo, na região correspondente ao painel, para abri-lo. O slider define o atraso de recolhimento, com padrão de **0,8 s**.
@@ -19,7 +19,7 @@ As preferências ficam em `settings.ini`, ao lado do executável. Os arquivos da
 
 ## Validação e limites
 
-Consulte [MANUAL-TESTS.md](MANUAL-TESTS.md) para verificar janela, bandeja, redimensionamento, menu, textos, mídia e volume. **Compilar com sucesso não aprova esses comportamentos.** Nesta versão não se abre o aplicativo nem se automatiza a área de trabalho durante o desenvolvimento.
+Consulte [MANUAL-TESTS.md](MANUAL-TESTS.md) para verificar janela, bandeja, redimensionamento, menu, textos, mídia e volume no seu ambiente. **Compilar com sucesso não aprova esses comportamentos.** O desenvolvimento desta atualização utilizou análise estática e compilação; não foram executados testes automatizados de interface. A autorização para publicar veio da avaliação manual do usuário.
 
 Tela cheia exclusiva, jogos que prendem o cursor e outras janelas que disputam prioridade impedem garantia universal de sobreposição. DPI/múltiplos monitores, roteamento de áudio, mute e textos longos também precisam de conferência manual. Se houver várias sessões Spotify, o ícone representa uma sessão de referência e a ação de mute é aplicada às sessões Spotify controláveis; mudanças externas podem levar até a próxima atualização para aparecer.
 
@@ -37,4 +37,4 @@ O pacote contém apenas executável e documentação. `SHA256SUMS.txt`, ao lado 
 
 Código: `player.rs`, `layout.rs` e `ui.rs` cuidam da interface; `window.rs`, `dropdown.rs` e `preferences.rs` cuidam da janela; `media.rs`, `model.rs` e `volume.rs` integram o Windows. O ponto de recuperação anterior está na tag local `snapshot-v0.2.1`.
 
-Repositório oficial: [Velsurr/spotify-dropdown](https://github.com/Velsurr/spotify-dropdown). As fontes podem ser sincronizadas durante a preparação, mas **tag definitiva e Release não devem ser publicadas antes da aprovação manual**. Versões usam SemVer, incluindo o sufixo `-alpha`; consulte [CHANGELOG.md](CHANGELOG.md) e [RELEASE-NOTES.md](RELEASE-NOTES.md). Ferramentas, executáveis, preferências e diagnósticos locais ficam fora do Git. Não afiliado ao Spotify.
+Repositório oficial: [Velsurr/spotify-dropdown](https://github.com/Velsurr/spotify-dropdown). A publicação da tag e da Release `v0.2.2-alpha` está autorizada pelo usuário. Versões usam SemVer, incluindo o sufixo `-alpha`; consulte [CHANGELOG.md](CHANGELOG.md) e [RELEASE-NOTES.md](RELEASE-NOTES.md). Ferramentas, executáveis, preferências e diagnósticos locais ficam fora do Git. Não afiliado ao Spotify.

@@ -1,6 +1,6 @@
-# Validação manual — candidata à v0.2.2 Alpha
+# Validação manual — v0.2.2 Alpha
 
-**Checklist para o usuário; ainda não executado.** A versão permanece `0.2.2-alpha`. Compilação e análise estática não aprovam aparência ou funcionamento. Não publicar a tag definitiva nem a Release até a aprovação explícita do usuário.
+**Checklist de referência para validação no seu ambiente.** A publicação da `0.2.2-alpha` foi autorizada pelo usuário após avaliar a candidata. Os itens abaixo não foram certificados individualmente pelo desenvolvimento; compilação e análise estática não comprovam aparência ou funcionamento em todos os cenários.
 
 Extraia o ZIP em pasta gravável e abra `Spotify Dropdown.exe`. Compare com suas capturas de referência em janela ampla, estreita e na altura mínima.
 

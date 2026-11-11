@@ -2,7 +2,7 @@
 
 ## 0.2.2-alpha
 
-Versão candidata em refinamento, sem incremento de versão. Validação funcional e visual manual e aprovação para publicação pendentes.
+Publicação autorizada pelo usuário após avaliação manual da candidata. O número da versão permanece inalterado; a Alpha continua experimental e sujeita às limitações documentadas.
 
 - Capa sempre visível; modo compacto horizontal com capa/informações à esquerda, reprodução à direita e progresso inferior.
 - Ícones e botão de reprodução menores, com áreas clicáveis preservadas; espaçamento vertical reduzido e grupos com larguras máximas.
